@@ -1,0 +1,14 @@
+[package]
+
+name = "server"
+version = "0.0.1"
+authors = ["Chang Liu <cliu712@aucklanduni.ac.nz>"]
+
+[dependencies]
+redis = "*"
+iron = "*"
+bodyparser = "*"
+router = "*"
+
+[dependencies.urlencoded]
+git = "file:///home/chang/src/rust/urlencoded"
