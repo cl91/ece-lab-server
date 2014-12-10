@@ -14,3 +14,7 @@ pub fn query_user(name: &str, field: &str) -> RedisResult<String> {
 pub fn set_user(name: &str, field: &str, value: &str) -> RedisResult<()> {
     con().hset(format!("user:{}", name), field, value)
 }
+
+pub fn set_auth(auth: &str, user: &str) -> RedisResult<()> {
+    con().hset("auth", auth, user)
+}

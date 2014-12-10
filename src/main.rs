@@ -13,5 +13,5 @@ mod db;
 fn main() {
     let mut router = Router::new();
     auth::register_handler(&mut router);
-    Iron::new(router).listen("localhost:3000");
+    Iron::new(router).listen("localhost:3000").unwrap();
 }

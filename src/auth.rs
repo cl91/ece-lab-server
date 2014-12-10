@@ -3,7 +3,7 @@ use std::rand::Rng;
 use iron::prelude::*;
 use iron::response::modifiers::{Body, Status};
 use iron::status;
-use router::{Router, Params};
+use router::Router;
 use urlencoded::UrlEncodedQuery;
 
 use db;
@@ -13,8 +13,10 @@ fn authenticate(user: &str, pass: &str) -> Option<String> {
         if realpass == pass {
             let mut rng = rand::task_rng();
             let auth = format!("{:x}", rng.gen::<u64>());
-            if let Ok(()) = db::set_user(user, "auth", auth.as_slice()) {
-                return Some(auth);
+            if let Ok(()) = db::set_user(user, "auth", &*auth) {
+                if let Ok(()) = db::set_auth(&*auth, user) {
+                    return Some(auth);
+                }
             }
         }
     }
