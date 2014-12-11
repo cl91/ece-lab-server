@@ -1,20 +1,18 @@
-extern crate redis;
+use redis::{Client, Connection, Commands, RedisResult};
 
-use self::redis::{Commands, RedisResult};
-
-fn con() -> redis::Connection {
-    let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+pub fn db() -> Connection {
+    let client = Client::open("redis://127.0.0.1/").unwrap();
     client.get_connection().unwrap()
 }
 
 pub fn query_user(name: &str, field: &str) -> RedisResult<String> {
-    con().hget(format!("user:{}", name), field)
+    db().hget(format!("user:{}", name), field)
 }
 
 pub fn set_user(name: &str, field: &str, value: &str) -> RedisResult<()> {
-    con().hset(format!("user:{}", name), field, value)
+    db().hset(format!("user:{}", name), field, value)
 }
 
 pub fn set_auth(auth: &str, user: &str) -> RedisResult<()> {
-    con().hset("auth", auth, user)
+    db().hset("auth", auth, user)
 }
