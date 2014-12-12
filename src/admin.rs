@@ -38,9 +38,11 @@ fn get_admin_info(admin: &str) -> AdminParams {
 fn set_admin_info(admin: &AdminParams) -> RedisResult<()> {
     stop_if_error!(db().sadd("admins", &*admin.name));
     stop_if_error!(db().del(format!("user:{}:courses", admin.name)));
-    for course in admin.courses.iter() {
-        stop_if_error!(db().sadd(format!("user:{}:courses", admin.name), &**course));
-        stop_if_error!(db().sadd(format!("course:{}:admins", course[0]), &*admin.name));
+    if let Some(ref courses) = admin.courses {
+        for course in courses.iter() {
+            stop_if_error!(db().sadd(format!("user:{}:courses", admin.name), &**course));
+            stop_if_error!(db().sadd(format!("course:{}:admins", course), &*admin.name));
+        }
     }
     Ok(())
 }
@@ -48,9 +50,11 @@ fn set_admin_info(admin: &AdminParams) -> RedisResult<()> {
 fn del_admin_info(name: &str) -> RedisResult<()> {
     let admin_info = get_admin_info(name);
     stop_if_error!(db().srem("admins", name));
-    stop_if_error!(db().del(format!("user:{}:courses", name)));
-    for course in admin_info.courses.iter() {
-        stop_if_error!(db().srem(format!("course:{}:admins", course), name));
+    if let Some(ref courses) = admin_info.courses {
+        stop_if_error!(db().del(format!("user:{}:courses", name)));
+        for course in courses.iter() {
+            stop_if_error!(db().srem(format!("course:{}:admins", course), name));
+        }
     }
     Ok(())
 }
