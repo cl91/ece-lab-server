@@ -1,8 +1,8 @@
 use redis::{Client, Connection, Commands, RedisResult};
 
-pub fn db() -> Connection {
-    let client = Client::open("redis://127.0.0.1/").unwrap();
-    client.get_connection().unwrap()
+pub fn db() -> RedisResult<Connection> {
+    let client = try!(Client::open("redis://127.0.0.1/"));
+    client.get_connection()
 }
 
 pub fn query_user(name: &str, field: &str) -> RedisResult<String> {

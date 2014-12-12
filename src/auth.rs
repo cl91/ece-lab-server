@@ -36,5 +36,5 @@ fn auth_handler(req: &mut Request) -> IronResult<Response> {
 }
 
 pub fn register_handler(router: &mut Router) {
-    router.get("/api/auth", auth_handler);
+    router.post("/api/auth", auth_handler);
 }

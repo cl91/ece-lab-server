@@ -1,4 +1,5 @@
 #![feature(globs)]
+#![feature(macro_rules)]
 
 extern crate serialize;
 extern crate redis;
@@ -13,10 +14,12 @@ use iron::Iron;
 mod auth;
 mod db;
 mod mark;
+mod admin;
 
 fn main() {
     let mut router = Router::new();
     auth::register_handler(&mut router);
     mark::register_handler(&mut router);
+    admin::register_handler(&mut router);
     Iron::new(router).listen("localhost:3000").unwrap();
 }
