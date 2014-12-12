@@ -39,7 +39,18 @@ fn set_admin_info(admin: &AdminParams) -> RedisResult<()> {
     stop_if_error!(db().sadd("admins", &*admin.name));
     stop_if_error!(db().del(format!("user:{}:courses", admin.name)));
     for course in admin.courses.iter() {
-        stop_if_error!(db().sadd(format!("user:{}:courses", admin.name), course.as_slice()));
+        stop_if_error!(db().sadd(format!("user:{}:courses", admin.name), &**course));
+        stop_if_error!(db().sadd(format!("course:{}:admins", course[0]), &*admin.name));
+    }
+    Ok(())
+}
+
+fn del_admin_info(name: &str) -> RedisResult<()> {
+    let admin_info = get_admin_info(name);
+    stop_if_error!(db().srem("admins", name));
+    stop_if_error!(db().del(format!("user:{}:courses", name)));
+    for course in admin_info.courses.iter() {
+        stop_if_error!(db().srem(format!("course:{}:admins", course), name));
     }
     Ok(())
 }
@@ -81,13 +92,12 @@ fn set_handler(req: &mut Request) -> IronResult<Response> {
 fn del_handler(req: &mut Request) -> IronResult<Response> {
     if let Some(queries) = req.get_ref::<UrlEncodedQuery>() {
         if let Some(user) = queries.get("name") {
-            return match db().srem("admins", user.as_slice()) {
-                Ok(1u) => Ok(Response::new().set(Status(status::Ok)).set(Body(
-                    format!("Removed user {} from admins", user)))),
-                Ok(_) => Ok(Response::new().set(Status(status::Ok)).set(Body(
-                    format!("Failed to remove user {} from admins.", user)))),
-                Err(err) => Ok(Response::new().set(Status(status::Ok)).set(Body(
-                    format!("Database access error: {}", err.description()))))
+            return match del_admin_info(&*user[0]) {
+                Ok(()) => Ok(Response::new().set(Status(status::Ok)).set(Body(
+                    format!("Removed user {} from admins", user[0])))),
+                Err(err) => Ok(Response::new().set(Status(status::Forbidden)).set(Body(
+                    format!("Failed to remove user {} from admins: {}",
+                            user[0], err.description()))))
             }
         }
     }
