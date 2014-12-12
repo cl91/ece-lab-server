@@ -5,6 +5,7 @@ use iron::response::modifiers::{Body, Status};
 use iron::status;
 use router::Router;
 use bodyparser::BodyParser;
+use urlencoded::UrlEncodedQuery;
 use redis::{Commands, RedisResult};
 use db::db;
 
@@ -77,7 +78,25 @@ fn set_handler(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+fn del_handler(req: &mut Request) -> IronResult<Response> {
+    if let Some(queries) = req.get_ref::<UrlEncodedQuery>() {
+        if let Some(user) = queries.get("name") {
+            return match db().srem("admins", user.as_slice()) {
+                Ok(1u) => Ok(Response::new().set(Status(status::Ok)).set(Body(
+                    format!("Removed user {} from admins", user)))),
+                Ok(_) => Ok(Response::new().set(Status(status::Ok)).set(Body(
+                    format!("Failed to remove user {} from admins.", user)))),
+                Err(err) => Ok(Response::new().set(Status(status::Ok)).set(Body(
+                    format!("Database access error: {}", err.description()))))
+            }
+        }
+    }
+    Ok(Response::new().set(Status(status::BadRequest))
+       .set(Body("Invalid query string for /api/del/admin")))
+}
+
 pub fn register_handler(router: &mut Router) {
     router.post("/api/get/admin", get_handler);
     router.post("/api/set/admin", set_handler);
+    router.post("/api/del/admin", del_handler);
 }
