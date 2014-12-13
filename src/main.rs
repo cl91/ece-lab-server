@@ -14,12 +14,12 @@ use iron::Iron;
 mod auth;
 mod db;
 mod mark;
-mod admin;
+mod api;
 
 fn main() {
     let mut router = Router::new();
     auth::register_handler(&mut router);
     mark::register_handler(&mut router);
-    admin::register_handler(&mut router);
+    api::register_handler(&mut router);
     Iron::new(router).listen("localhost:3000").unwrap();
 }

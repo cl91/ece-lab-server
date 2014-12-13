@@ -3,7 +3,7 @@ use serialize::json;
 use iron::prelude::*;
 use iron::response::modifiers::{Body, Status};
 use iron::status;
-use router::Router;
+use router::{Params, Router};
 use bodyparser::BodyParser;
 use urlencoded::UrlEncodedQuery;
 use redis::{Commands, RedisResult};
@@ -21,7 +21,7 @@ macro_rules! stop_if_error {
     }
 }
 
-#[deriving(Encodable, Decodable, Clone, Show)]
+#[deriving(Encodable, Clone, Show)]
 struct AdminParams {
     name: String,
     courses: Option<Vec<String>>
@@ -35,31 +35,19 @@ fn get_admin_info(admin: &str) -> AdminParams {
     }
 }
 
-fn set_admin_info(admin: &AdminParams) -> RedisResult<()> {
-    stop_if_error!(db().sadd("admins", &*admin.name));
-    stop_if_error!(db().del(format!("user:{}:courses", admin.name)));
-    if let Some(ref courses) = admin.courses {
-        for course in courses.iter() {
-            stop_if_error!(db().sadd(format!("user:{}:courses", admin.name), &**course));
-            stop_if_error!(db().sadd(format!("course:{}:admins", course), &*admin.name));
-        }
-    }
-    Ok(())
-}
-
 fn del_admin_info(name: &str) -> RedisResult<()> {
     let admin_info = get_admin_info(name);
     stop_if_error!(db().srem("admins", name));
     if let Some(ref courses) = admin_info.courses {
         stop_if_error!(db().del(format!("user:{}:courses", name)));
         for course in courses.iter() {
-            stop_if_error!(db().srem(format!("course:{}:admins", course), name));
+            stop_if_error!(db().hset(format!("course:{}", course), "admin", name));
         }
     }
     Ok(())
 }
 
-fn get_handler(_: &mut Request) -> IronResult<Response> {
+fn get_admin_handler(_: &mut Request) -> IronResult<Response> {
     match db().smembers::<&str, Vec<String>>("admins") {
         Ok(admins) => {
             let admin_info_vec : Vec<AdminParams> = admins.iter()
@@ -68,32 +56,35 @@ fn get_handler(_: &mut Request) -> IronResult<Response> {
         }
         Err(err) => {
                 Ok(Response::new().set(Status(status::Forbidden))
-                   .set(Body(format!("Failed to access db entry 'admin'. Reason {}.",
+                   .set(Body(format!("Failed to access db entry 'admins'. Reason {}.",
                                      err.description()))))
         }
     }
 }
 
-fn set_handler(req: &mut Request) -> IronResult<Response> {
-    if let Some(admin) = req.get::<BodyParser<AdminParams>>() {
-        match set_admin_info(&admin) {
-            Ok(_) => {
-                Ok(Response::new().set(Status(status::Ok))
-                   .set(Body(format!("Successfully updated database for admin {}", admin.name))))
-            }
-            Err(err) => {
-                Ok(Response::new().set(Status(status::Forbidden))
-                   .set(Body(format!("Failed to update database for admin {}. Reason {}",
-                                     admin.name, err.description()))))
+fn new_admin_handler(req: &mut Request) -> IronResult<Response> {
+    if let Some(queries) = req.get_ref::<UrlEncodedQuery>() {
+        if let Some(name) = queries.get("name") {
+            return match db().sismember("admins", &*name[0]) {
+                Ok(true) => Ok(Response::new().set(Status(status::Forbidden))
+                               .set(Body(format!("Admin {} already exists.", name[0])))),
+                Ok(false) => if let Ok(true) = db().sadd("admins", &*name[0]) {
+                    Ok(Response::new().set(Status(status::Ok))
+                       .set(Body(format!("User {} added as admin.", name[0]))))
+                } else {
+                    Ok(Response::new().set(Status(status::Forbidden))
+                       .set(Body(format!("Failed to add user {} as admin.", name[0]))))
+                },
+                Err(err) => Ok(Response::new().set(Status(status::InternalServerError))
+                               .set(Body(format!("Database access error: {}", err.description()))))
             }
         }
-    } else {
-        Ok(Response::new().set(Status(status::BadRequest))
-           .set(Body("Invalid JSON input for /api/set/admin")))
     }
+    Ok(Response::new().set(Status(status::BadRequest))
+           .set(Body("Invalid query string for /api/admin/new")))
 }
 
-fn del_handler(req: &mut Request) -> IronResult<Response> {
+fn del_admin_handler(req: &mut Request) -> IronResult<Response> {
     if let Some(queries) = req.get_ref::<UrlEncodedQuery>() {
         if let Some(user) = queries.get("name") {
             return match del_admin_info(&*user[0]) {
@@ -106,11 +97,22 @@ fn del_handler(req: &mut Request) -> IronResult<Response> {
         }
     }
     Ok(Response::new().set(Status(status::BadRequest))
-       .set(Body("Invalid query string for /api/del/admin")))
+       .set(Body("Invalid query string for /api/admin/del")))
+}
+
+fn new_course_handler(req: &mut Request) -> IronResult<Response> {
+    Ok(Response::new())
+}
+
+fn add_marker_handler(req: &mut Request) -> IronResult<Response> {
+     let ref course = req.extensions.get::<Router, Params>().unwrap().find("course").unwrap_or("/");
+
 }
 
 pub fn register_handler(router: &mut Router) {
-    router.post("/api/get/admin", get_handler);
-    router.post("/api/set/admin", set_handler);
-    router.post("/api/del/admin", del_handler);
+    router.post("/api/admin/get", get_admin_handler);
+    router.post("/api/admin/new", new_admin_handler);
+    router.post("/api/admin/del", del_admin_handler);
+    router.post("/api/course/new", new_course_handler);
+    router.post("/api/course/:course/add-marker", add_marker_handler);
 }

@@ -3,6 +3,7 @@ name = "server"
 version = "0.0.1"
 dependencies = [
  "bodyparser 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cookie 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "redis 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",

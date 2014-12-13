@@ -7,6 +7,7 @@ authors = ["Chang Liu <cliu712@aucklanduni.ac.nz>"]
 [dependencies]
 redis = "*"
 iron = "*"
+cookie = "*"
 bodyparser = "*"
 router = "*"
 

@@ -17,7 +17,7 @@ struct MarkParams {
 
 // returns Some(Response) if data are NOT valid
 // in this case Response is the error response with appropriate HTTP status
-fn deny_if_not_valid_data(params: &MarkParams) -> Option<Response> {
+fn deny_if_not_valid_input(params: &MarkParams) -> Option<Response> {
     let body : Option<String> =
         if let Ok(1u) = db().sismember(format!("students"), params.student) {
             if let Ok(1u) = db().sismember(format!("student:{}:courses", params.student), &*params.course) {
@@ -45,7 +45,7 @@ fn deny_if_not_valid_data(params: &MarkParams) -> Option<Response> {
 fn mark_handler(req: &mut Request) -> IronResult<Response> {
     let parsed = req.get::<BodyParser<MarkParams>>();
     if let Some(params) = parsed {
-        if let Some(response) = deny_if_not_valid_data(&params) {
+        if let Some(response) = deny_if_not_valid_input(&params) {
             return Ok(response);
         }
         let key = format!("student:{}:{}:lab{}:marks", params.student, params.course, params.lab);
